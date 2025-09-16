@@ -1,10 +1,14 @@
 {
+  "name": "@dduel/optionals",
+  "version": "2.1.0",
+  "license": "MIT",
+  "exports": "./mod.ts",
   "tasks": {
     "test": "deno test --coverage=coverage",
     "lcov": "deno coverage coverage --lcov --output=coverage/report.lcov",
     "cover": "deno task clean && deno task test && deno task lcov && genhtml -o coverage/html coverage/report.lcov",
     "build": "deno run -A scripts/build_npm.ts --cp=LICENSE,README.md",
-    "publish": "cd ./npm && npm publish",
+    "publish": "deno publish",
     "clean": "rm -rf ./npm ./coverage"
   }
 }

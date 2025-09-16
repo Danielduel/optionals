@@ -1,4 +1,4 @@
-import { Err, Ok, Result } from "./result.ts";
+import { Err, Ok, type Result } from "./result.ts";
 
 /**
  * The primitive None value.
@@ -6,6 +6,8 @@ import { Err, Ok, Result } from "./result.ts";
  * _Note: To construct a None variant Option, please use `None()` instead._
  */
 export const none = Symbol("None");
+type None = typeof none;
+type UnwrapOption<O> = O extends Option<infer Inner> ? Inner : O;
 
 /**
  * A Rust-like Option class.
@@ -22,17 +24,21 @@ export const none = Symbol("None");
  *
  * ```
  */
-export class Option<T> {
-  private val: T | typeof none;
+export class Option<
+  Some,
+  Defined = false,
+  PossibleTypes = Defined extends false ? Some | None : Some,
+> {
+  private val: PossibleTypes;
 
   /**
    * A constructor for an Option.
    *
    * _Note: Please use either `Some` or `None` to construct Options._
    *
-   * @param {T | typeof none} input The value to wrap in an Option.
+   * @param {Some | None} input The value to wrap in an Option.
    */
-  constructor(input: T | typeof none) {
+  constructor(input: PossibleTypes) {
     this.val = input;
   }
 
@@ -40,24 +46,26 @@ export class Option<T> {
    * Converts Option into a String for display purposes.
    */
   get [Symbol.toStringTag]() {
-    return `Option`;
+    return "Option";
   }
 
   /**
    * Iterator support for Option.
    *
    * _Note: This method will only yeild if the Option is Some._
-   * @returns {IterableIterator<T>}
+   * @returns {IterableIterator<Some>}
    */
-  *[Symbol.iterator]() {
-    if (this.isSome()) yield this.val;
+  *[Symbol.iterator](): IterableIterator<Some> {
+    if (this.isSome()) {
+      yield this.val;
+    }
   }
 
   /**
    * Returns true if contained value isnt None.
    * @returns {boolean}
    */
-  isSome(): boolean {
+  isSome(): this is Option<Some, true> {
     return this.val !== none;
   }
 
@@ -66,7 +74,7 @@ export class Option<T> {
    *
    * @returns {boolean}
    */
-  isNone(): boolean {
+  isNone(): this is Option<None, true> {
     return this.val === none;
   }
 
@@ -75,56 +83,56 @@ export class Option<T> {
    * Throws an Error with a given message if the contained value is None.
    *
    * @param {string} msg An error message to throw if contained value is None.
-   * @returns {T}
+   * @returns {Some}
    */
-  expect(msg: string): T {
-    if (this.isNone()) {
-      throw new Error(msg);
+  expect(msg: string): Some {
+    if (this.isSome()) {
+      return this.val;
     }
 
-    return this.val as T;
+    throw new Error(msg);
   }
 
   /**
    * Returns the contained Some value, consuming the Option.
    * Throws an Error if contained value is None.
    *
-   * @returns {T}
+   * @returns {Some}
    */
-  unwrap(): T {
-    if (this.isNone()) {
-      throw new Error(`Unwrap called on None`);
+  unwrap(): Some {
+    if (this.isSome()) {
+      return this.val;
     }
 
-    return this.val as T;
+    throw new Error(`Unwrap called on None`);
   }
 
   /**
    * Returns the contained Some value or a provided default.
    *
-   * @param {T} fallback A default value to return if contained value is an Option.
-   * @returns {T}
+   * @param {Some} fallback A default value to return if contained value is an Option.
+   * @returns {Some}
    */
-  unwrapOr(fallback: T): T {
-    if (this.isNone()) {
-      return fallback;
+  unwrapOr(fallback: Some): Some {
+    if (this.isSome()) {
+      return this.val;
     }
 
-    return this.val as T;
+    return fallback;
   }
 
   /**
    * Returns the contained Some value or computes it from a closure.
    *
    * @param {Function} fn A function that computes a new value.
-   * @returns {T}
+   * @returns {Some}
    */
-  unwrapOrElse(fn: () => T): T {
-    if (this.isNone()) {
-      return fn();
+  unwrapOrElse(fn: () => Some): Some {
+    if (this.isSome()) {
+      return this.val;
     }
 
-    return this.val as T;
+    return fn();
   }
 
   /**
@@ -133,11 +141,16 @@ export class Option<T> {
    * @param {Function} fn A mapping function.
    * @returns {Option<U>}
    */
-  map<U>(fn: (input: T) => U): Option<U> {
+  map<U>(fn: (input: Some) => U): Option<U> | Option<None, true> {
     if (this.isSome()) {
-      return new Option<U>(fn(this.val as T));
+      return new Option<U>(fn(this.val));
     }
-    return this as unknown as Option<U>;
+
+    if (this.isNone()) {
+      return this;
+    }
+
+    return this as Option<None, true> // TODO remove this;
   }
 
   /**
@@ -147,9 +160,9 @@ export class Option<T> {
    * @param {Function} fn A mapping function.
    * @returns {U}
    */
-  mapOr<U>(fallback: U, fn: (input: T) => U): U {
+  mapOr<U>(fallback: U, fn: (input: Some) => U): U {
     if (this.isSome()) {
-      return fn(this.val as T);
+      return fn(this.val);
     }
 
     return fallback;
@@ -158,10 +171,10 @@ export class Option<T> {
   /**
    * Returns `or` if the Option is None, otherwise returns self.
    *
-   * @param {Option<T>} or An alternative Option value
-   * @returns {Option<T>}
+   * @param {Option<Some>} or An alternative Option value
+   * @returns {Option<Some>}
    */
-  or(or: Option<T>): Option<T> {
+  or(or: Option<Some>): Option<Some> {
     if (this.isSome()) {
       return this;
     }
@@ -173,16 +186,16 @@ export class Option<T> {
    * Transforms the `Option<T>` into a `Result<T, E>`, mapping Some to Ok and None to Err.
    *
    * @param {E} err An error to return if the Option is None.
-   * @returns {Result<T, E>}
+   * @returns {Result<Some, E>}
    *
    * @example
    * ```
    * const result = Some(2).okOr("Error"); // => Ok(2)
    * ```
    */
-  okOr<E extends Error>(err: E | string): Result<T, E> {
+  okOr<E extends Error>(err: E | string): Result<Some, E> {
     if (this.isSome()) {
-      return Ok(this.val as T);
+      return Ok(this.val);
     } else {
       return Err(err);
     }
@@ -193,7 +206,7 @@ export class Option<T> {
    *
    * _Note: Please only use this to match against in `if` or `swtich` statments._
    *
-   * @returns {T | typeof none}
+   * @returns {PossibleTypes}
    * @example
    * ```ts
    * function coolOrNice(input: Option<string>): Option<void> {
@@ -211,19 +224,24 @@ export class Option<T> {
    * }
    * ```
    */
-  peek(): T | typeof none {
+  peek(): PossibleTypes {
     return this.val;
   }
 
+  isInnerOption(): this is Option<Option<UnwrapOption<PossibleTypes>>> {
+    return this.val instanceof Option;
+  }
+
   /**
-   * Converts from Option<Option<T> to Option<T>
+   * Converts from Option<Option<T>> to Option<T>
    * @returns Option<T>
    */
-  flatten(): Option<T> {
-    if (this.val instanceof Option) {
-      return this.val
+  flatten(): Option<UnwrapOption<PossibleTypes>> {
+    // TODO remove these "as"
+    if (this.isInnerOption()) {
+      return this.val as Option<UnwrapOption<PossibleTypes>>;
     }
-    return this
+    return this as Option<UnwrapOption<PossibleTypes>>;
   }
 
   /**
@@ -252,7 +270,7 @@ export class Option<T> {
    * @returns {Promise<Option<T>>} The result of the closure.
    */
   static async fromAsync<T>(
-    fn: () => Promise<T | null | undefined>
+    fn: () => Promise<T | null | undefined>,
   ): Promise<Option<T>> {
     const result = await fn();
     if (result === null || result === undefined) {

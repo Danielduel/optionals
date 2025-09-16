@@ -1,7 +1,8 @@
 // deno-lint-ignore-file no-prototype-builtins
 /* eslint-disable no-prototype-builtins */
 
-import { None, Option, Some } from "./option.ts";
+import { None, type Option, Some } from "./option.ts";
+type UnwrapResult<R> = R extends Result<infer Inner, infer Err> ? Inner : R;
 
 /**
  * A Rust-like Result class.
@@ -288,13 +289,14 @@ export class Result<T, E extends Error> {
 
   /**
    * Converts from Result<Result<T, E>, E> to Result<T, E>
-   * @returns Option<T>
+   * @returns Result<T, E>
    */
-  flatten(): Result<T, E> {
+  flatten(): Result<UnwrapResult<T>, E> {
+    // TODO remove as
     if (this.val instanceof Result) {
-      return this.val
+      return this.val as Result<UnwrapResult<T>, E>;
     }
-    return this
+    return this as Result<UnwrapResult<T>, E>;
   }
 
   /**
