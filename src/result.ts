@@ -36,8 +36,8 @@ export class Result<T, E extends Error> {
   /**
    * Converts Result into a String for display purposes.
    */
-  get [Symbol.toStringTag]() {
-    return `Result`;
+  get [Symbol.toStringTag](): string {
+    return "Result";
   }
 
   /**
@@ -46,8 +46,9 @@ export class Result<T, E extends Error> {
    * _Note: This method will only yeild if the Result is Ok._
    * @returns {IterableIterator<T>}
    */
-  *[Symbol.iterator]() {
-    if (this.isOk()) yield this.val;
+  *[Symbol.iterator](): IterableIterator<T> {
+    // TODO remove "as"
+    if (this.isOk()) yield this.val as T;
   }
 
   /**
@@ -141,7 +142,7 @@ export class Result<T, E extends Error> {
   unwrapErr(): E {
     if (this.isOk()) {
       throw new Error(
-        `UnwrapError called on value - ${this.val as unknown as string}`
+        `UnwrapError called on value - ${this.val as unknown as string}`,
       );
     }
 
@@ -344,7 +345,7 @@ export class Result<T, E extends Error> {
    * ```
    */
   static partition<T, E extends Error>(
-    input: Array<Result<T, E>>
+    input: Array<Result<T, E>>,
   ): { ok: Array<T>; err: Array<E> } {
     return input.reduce(
       (acc: { ok: Array<T>; err: Array<E> }, e) => {
@@ -356,7 +357,7 @@ export class Result<T, E extends Error> {
       {
         ok: [],
         err: [],
-      }
+      },
     );
   }
 }
@@ -385,7 +386,7 @@ export class Result<T, E extends Error> {
  * }
  * ```
  */
-export function Ok<T, E extends Error>(input?: T) {
+export function Ok<T, E extends Error>(input?: T): Result<T, E> {
   return new Result<T, E>(input as T);
 }
 

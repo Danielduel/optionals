@@ -45,7 +45,7 @@ export class Option<
   /**
    * Converts Option into a String for display purposes.
    */
-  get [Symbol.toStringTag]() {
+  get [Symbol.toStringTag](): string {
     return "Option";
   }
 
